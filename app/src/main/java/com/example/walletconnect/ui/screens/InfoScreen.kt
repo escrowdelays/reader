@@ -188,7 +188,7 @@ fun InfoScreen(
                 InfoGlassCard {
                     Text(
                         text = when (infoLang) {
-                            InfoLang.EN -> "You make a deposit that you risk losing if you fail to complete the reading within the set deadline."
+                            InfoLang.EN -> "You make a deposit which you risk losing if you fail to complete the reading within the set deadline."
                             InfoLang.RU -> "Вы вносите депозит, который рискуете потерять, если не завершите чтение в срок."
                         },
                         fontSize = 14.sp,
@@ -204,8 +204,8 @@ fun InfoScreen(
                     )
                     Text(
                         text = when (infoLang) {
-                            InfoLang.EN -> "The application offers two reading modes to choose from: checkpoint detection and timer reset."
-                            InfoLang.RU -> "Приложение предлагает на выбор, два режима чтения: поиск чекпоинтов и обнуление таймера."
+                            InfoLang.EN -> " The app tracks your reading progress using checkpoints."
+                            InfoLang.RU -> "Приложение проверяет прогресс вашего чтения, с помощью чекпоинтов."
                         },
                         fontSize = 14.sp,
                         color = NeumorphicTextSecondary
@@ -215,7 +215,7 @@ fun InfoScreen(
                 // Checkpoint detection
                 Text(
                     text = when (infoLang) {
-                        InfoLang.EN -> "Checkpoint detection"
+                        InfoLang.EN -> "Checkpoint mode"
                         InfoLang.RU -> "Поиск чекпоинтов"
                     },
                     fontFamily = BpmfHuninnFontFamily,
@@ -238,7 +238,7 @@ fun InfoScreen(
                 // Timer reset
                 Text(
                     text = when (infoLang) {
-                        InfoLang.EN -> "Timer reset"
+                        InfoLang.EN -> "Timer mode"
                         InfoLang.RU -> "Обнуление таймера"
                     },
                     fontFamily = BpmfHuninnFontFamily,
@@ -250,8 +250,8 @@ fun InfoScreen(
                 InfoGlassCard {
                     Text(
                         text = when (infoLang) {
-                            InfoLang.EN -> "You choose a book and set the number of hours you plan to spend on it. Once you start flipping through the pages, the timer begins. If you haven't turned the page for more than 5 minutes, the timer pauses. Reading is not required, but you must reset the timer before the deadline. If you fail to do so, you will lose your deposit."
-                            InfoLang.RU -> "Вы выбираете книгу и определяете количество часов, которое хотите на нее потратить. Когда вы начинаете листать страницы, запускается таймер. Если Вы не перелистывали страницу дольше 5 минут, таймер приостанавливается, пока вы не продолжите. Читать не обязательно, но до наступления дедлайна, вы должны обнулить таймер. Если не успеете — потеряете свой депозит."
+                            InfoLang.EN -> "In Timer mode, you don't need to look for checkpoints — just select a book and set how many hours you plan to spend on it. Once you start flipping through the pages, the timer begins. If you don’t flip a page for more than 5 minutes, the timer pauses until you continue. Reading is not required, but you must reset the timer before the deadline. If you fail to do so, you will lose your deposit."
+                            InfoLang.RU -> "В режиме таймера, вам не надо искать чекпоинты. Вы просто выбираете книгу и определяете количество часов, которое хотите на нее потратить. Когда вы начинаете листать страницы, запускается таймер. Если Вы не перелистывали страницу дольше 5 минут, таймер приостанавливается, пока вы не продолжите. Читать не обязательно, но до наступления дедлайна, вы должны обнулить таймер. Если не успеете — потеряете свой депозит."
                         },
                         fontSize = 14.sp,
                         color = NeumorphicTextSecondary
@@ -353,7 +353,7 @@ fun InfoScreen(
                             modifier = Modifier.weight(1f)
                         )
                         if (copied) {
-                            Text("✓", fontSize = 14.sp, color = Color(0xFF808080))  
+                            Text("✓", fontSize = 14.sp, color = Color(0xFF808080))
                         } else {
                             Image(
                                 painter = painterResource(R.drawable.ic_copy),
@@ -380,7 +380,7 @@ fun InfoScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { uriHandler.openUri("https://github.com/escrowdelay/reader/tree/main/contract") }
+                            .clickable { uriHandler.openUri("https://github.com/escrowdelays/reader/tree/main/contract") }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -401,7 +401,7 @@ fun InfoScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { uriHandler.openUri("https://github.com/escrowdelay/reader") }
+                            .clickable { uriHandler.openUri("https://github.com/escrowdelays/reader") }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

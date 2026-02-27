@@ -1,14 +1,32 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+  val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+  if (keystorePropertiesFile.exists()) {
+      keystoreProperties.load(keystorePropertiesFile.inputStream())
+  }
 
 android {
     namespace = "com.example.walletconnect"
     compileSdk {
         version = release(36)
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("release.keystore")
+
+            storePassword = keystoreProperties["storePassword"] as String?
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+        
+        }
+
     }
 
     defaultConfig {
@@ -23,6 +41,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -190,7 +190,7 @@ class SolanaManager(private val context: Context) : ViewModel() {
 
         // Identity URI - Максимально уникальный URI для избежания кэша Phantom
         // Используем timestamp чтобы Phantom точно воспринял как новое приложение
-        val IDENTITY_URI: Uri = Uri.parse("https://escrowdelay.github.io/")
+        val IDENTITY_URI: Uri = Uri.parse("https://escrowdelays.com/")
         const val IDENTITY_NAME = "Escrow reader"  
         // ICON_URI - относительный путь для favicon
         val ICON_URI: Uri = Uri.parse("favicon.ico")

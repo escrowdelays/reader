@@ -365,14 +365,14 @@ fun HomeScreen(
             
             // Колонтитул внизу
             Text(
-                text = "escrowdelay.github.io",
+                text = "escrowdelays.com",
                 fontSize = 15.sp,
                 fontFamily = TirtoWritterFontFamily,
                 color = NeumorphicTextSecondary,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { uriHandler.openUri("https://escrowdelay.github.io/") }
+                    .clickable { uriHandler.openUri("https://escrowdelays.com/") }
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
