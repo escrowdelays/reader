@@ -54,3 +54,8 @@
 
 # AndroidX Security (EncryptedSharedPreferences)
 -keep class androidx.security.crypto.** { *; }
+
+
+# Error Prone annotations — только для компиляции, в рантайме нет
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
