@@ -42,22 +42,26 @@ object VaultManager {
      * Обернуто в try-catch для предотвращения вылетов на эмуляторах с проблемным Keystore.
      */
     private fun createSharedPrefs(context: Context): SharedPreferences {
-        return try {
-            val masterKey = MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
 
-            EncryptedSharedPreferences.create(
-                context,
-                PREFS_NAME,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    fun isKeystoreAvailable(context: Context): Boolean {
+        return try {
+            getSharedPrefs(context)
+            true
         } catch (e: Exception) {
-            Timber.e(e, "⚠️ Ошибка инициализации EncryptedSharedPreferences. Использую fallback.")
-            // Фолбек для эмуляторов: используем обычные SharedPreferences, если Keystore недоступен
-            context.getSharedPreferences(PREFS_NAME + "_fallback", Context.MODE_PRIVATE)
+            Timber.e(e, "Keystore unavailable")
+            false
         }
     }
 

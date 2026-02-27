@@ -44,7 +44,7 @@ import com.example.walletconnect.SolanaManager
 import com.example.walletconnect.ui.theme.NeumorphicBackground
 import com.example.walletconnect.ui.theme.NeumorphicText
 import com.example.walletconnect.ui.theme.NeumorphicTextSecondary
-import com.example.walletconnect.ui.theme.TirtoWritterFontFamily
+import com.example.walletconnect.ui.theme.BpmfHuninnFontFamily
 import com.example.walletconnect.utils.CheckpointIndexStore
 import com.example.walletconnect.utils.CheckpointContractStore
 import com.example.walletconnect.utils.TimerContractStore
@@ -182,33 +182,22 @@ fun EventsScreen(
     fun hasPrivateKey(eventId: String) = VaultManager.getPrivateKey(context, eventId) != null
 
     val filteredEvents = remember(sortedCreatedEvents, selectedTabIndex, currentTimeSeconds, openedEventIds) {
-        val eventsWithStatus = sortedCreatedEvents.map { event ->
-            val isOpened = openedEventIds.contains(event.id)
-            val status   = getEventStatus(event, isOpened, currentTimeSeconds)
-            val hasKey   = hasPrivateKey(event.id)
-            Triple(event, status, hasKey)
-        }
+        val eventsWithStatus = sortedCreatedEvents
+            .filter { hasPrivateKey(it.id) }
+            .map { event ->
+                val isOpened = openedEventIds.contains(event.id)
+                val status   = getEventStatus(event, isOpened, currentTimeSeconds)
+                Pair(event, status)
+            }
         when (selectedTabIndex) {
-            0    -> eventsWithStatus.filter { it.second == "active" && it.third }.map { it.first }
-            1    -> eventsWithStatus.filter { it.second == "win"    && it.third }.map { it.first }
-            2    -> eventsWithStatus.filter { it.second == "lose"   && it.third }.map { it.first }
-            3    -> eventsWithStatus.filter { !it.third }.map { it.first }
-            else -> sortedCreatedEvents
+            0    -> eventsWithStatus.filter { it.second == "active" }.map { it.first }
+            1    -> eventsWithStatus.filter { it.second == "win" }.map { it.first }
+            2    -> eventsWithStatus.filter { it.second == "lose" }.map { it.first }
+            else -> eventsWithStatus.map { it.first }
         }
     }
 
-    val hasNoKeyEvents = remember(sortedCreatedEvents) {
-        sortedCreatedEvents.any { VaultManager.getPrivateKey(context, it.id) == null }
-    }
-
-    val tabs = remember(hasNoKeyEvents) {
-        val base = listOf("active", "win", "lose")
-        if (hasNoKeyEvents) base + "no key" else base
-    }
-
-    LaunchedEffect(tabs.size) {
-        if (selectedTabIndex >= tabs.size) selectedTabIndex = 0
-    }
+    val tabs = listOf("active", "win", "lose")
 
     // ── UI ────────────────────────────────────────────────────────────────────
 
@@ -271,7 +260,7 @@ fun EventsScreen(
 
                         Text(
                             text = "contracts",
-                            fontFamily = TirtoWritterFontFamily,
+                            fontFamily = BpmfHuninnFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp,
                             color = EvTextHi
@@ -332,7 +321,7 @@ fun EventsScreen(
                             ) {
                                 Text(
                                     text = title,
-                                    fontFamily = TirtoWritterFontFamily,
+                                    fontFamily = BpmfHuninnFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selectedTabIndex == index) Color.White else EvTextLo
@@ -427,7 +416,6 @@ fun EventItemCreated(
         val checkpointLabel: String,
         val timerParams: TimerContractStore.TimerParams?,
         val remainingSeconds: Long,
-        val hasPrivateKey: Boolean,
         val savedAmount: BigInteger?,
         val tokenDecimals: Int?,
         val tokenSymbol: String?,
@@ -439,7 +427,6 @@ fun EventItemCreated(
         val bookFile    = FileManager.getBookFile(context, event.id)
         val fileType    = BoxMetadataStore.getFileType(context, event.id)
         val timerParams = TimerContractStore.getTimerParams(context, event.id)
-        val hasPrivateKey = VaultManager.getPrivateKey(context, event.id) != null
         val savedAmount = BoxMetadataStore.getAmount(context, event.id)
         val amountToSave = if (savedAmount == null && event.amount != BigInteger.ZERO) {
             BoxMetadataStore.setAmount(context, event.id, event.amount); event.amount
@@ -457,7 +444,6 @@ fun EventItemCreated(
             checkpointLabel        = CheckpointIndexStore.getCheckpointLabel(context, event.id),
             timerParams            = timerParams,
             remainingSeconds       = timerParams?.let { TimerContractStore.getRemainingSeconds(context, event.id) } ?: 0L,
-            hasPrivateKey  = hasPrivateKey,
             savedAmount    = amountToSave,
             tokenDecimals  = tokenDecimals,
             tokenSymbol    = tokenSymbol,
@@ -565,16 +551,6 @@ fun EventItemCreated(
                     )
                 }
 
-                if (!cachedData.hasPrivateKey) {
-                    Box(
-                        modifier = Modifier
-                            .background(EvAmber.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                            .border(1.dp, EvAmber.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Text("⚠ no key", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = EvAmber)
-                    }
-                }
             }
 
             // Divider
@@ -626,45 +602,6 @@ fun EventItemCreated(
             val mintAddress         = remember(event.id) { BoxMetadataStore.getMint(context, event.id) }
             val isTokenContract     = mintAddress != null
 
-            if (status == "active" && canOpenBox) {
-                if (cachedData.hasPrivateKey) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(6.dp, RoundedCornerShape(14.dp), ambientColor = EvShadowAmbient, spotColor = EvShadowSpot)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (!isTrulyProcessing) EvAccentBrush else Brush.linearGradient(listOf(EvSurfaceLo, EvSurfaceLo)), RoundedCornerShape(14.dp))
-                            .border(1.dp, Brush.linearGradient(listOf(EvBorderHi, EvBorderLo)), RoundedCornerShape(14.dp))
-                            .clickable(enabled = !isTrulyProcessing) {
-                                if (!isLocallyProcessing) {
-                                    isLocallyProcessing = true
-                                    Timber.d("🔘 Return deposit нажата: boxId=${event.id}")
-                                    if (isTokenContract) manager.openBoxToken(context, event.id, activityResultSender)
-                                    else manager.openBox(context, event.id, activityResultSender)
-                                }
-                            }
-                            .padding(vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isTrulyProcessing)
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = EvSlate)
-                        else
-                            Text("Return deposit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(EvSurfaceLo, RoundedCornerShape(14.dp))
-                            .border(1.dp, EvBorderLo, RoundedCornerShape(14.dp))
-                            .padding(vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Return deposit (no key)", color = EvTextLo, fontSize = 14.sp)
-                    }
-                }
-            }
-
             if (hasBookFile) {
                 if (cachedData.totalPages > 0) {
                     val readProgress = (cachedData.currentPage + 1).toFloat() / cachedData.totalPages.toFloat()
@@ -700,6 +637,32 @@ fun EventItemCreated(
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Read", color = EvTextMid, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                }
+            }
+
+            if (status == "active" && canOpenBox) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(6.dp, RoundedCornerShape(14.dp), ambientColor = EvShadowAmbient, spotColor = EvShadowSpot)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (!isTrulyProcessing) EvAccentBrush else Brush.linearGradient(listOf(EvSurfaceLo, EvSurfaceLo)), RoundedCornerShape(14.dp))
+                        .border(1.dp, Brush.linearGradient(listOf(EvBorderHi, EvBorderLo)), RoundedCornerShape(14.dp))
+                        .clickable(enabled = !isTrulyProcessing) {
+                            if (!isLocallyProcessing) {
+                                isLocallyProcessing = true
+                                Timber.d("🔘 Return deposit нажата: boxId=${event.id}")
+                                if (isTokenContract) manager.openBoxToken(context, event.id, activityResultSender)
+                                else manager.openBox(context, event.id, activityResultSender)
+                            }
+                        }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isTrulyProcessing)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = EvSlate)
+                    else
+                        Text("Return deposit", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }

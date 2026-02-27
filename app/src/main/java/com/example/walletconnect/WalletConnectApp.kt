@@ -4,6 +4,7 @@ import android.app.Application
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
 import timber.log.Timber
+import com.example.walletconnect.BuildConfig
 
 /**
  * Application класс для Solana EPUB Reader
@@ -17,8 +18,9 @@ class WalletConnectApp : Application() {
         // Регистрация BouncyCastle для криптографии (Ed25519)
         setupBouncyCastle()
         
-        // Инициализация логгера
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
 
         Timber.d("✅✅✅ Solana EPUB Reader инициализирован!")
         Timber.d("📱 Network: Mainnet-Beta")

@@ -13,6 +13,10 @@ val TirtoWritterFontFamily = FontFamily(
     Font(R.font.tirto_writter, FontWeight.Normal)
 )
 
+val BpmfHuninnFontFamily = FontFamily(
+    Font(R.font.bpmf_huninn, FontWeight.Normal)
+)
+
 // Set of Material typography styles to start with
 val Typography = Typography(
     bodyLarge = TextStyle(

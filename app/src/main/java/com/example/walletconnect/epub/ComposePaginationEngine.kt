@@ -113,7 +113,7 @@ class ComposePaginationEngine {
                     // Применяем стиль в зависимости от того, найден чекпоинт или нет
                     withStyle(
                         SpanStyle(
-                            color = if (isFound) Color(0xFF4CAF50) else Color.Black // Зеленый для найденных, черный для ненайденных
+                            color = if (isFound) Color(0xFF4CAF50) else Color.Unspecified
                         )
                     ) {
                         append(checkpointLabel)
@@ -183,8 +183,27 @@ class ComposePaginationEngine {
                 }
             }
 
-            // На всякий случай вставляем оставшиеся чекпоинты в конец
             insertPendingCheckpoints()
+
+            // Force-append any checkpoints whose index exceeds the final text length
+            while (checkpointPointer < sortedCheckpoints.size) {
+                val checkpointIndex = sortedCheckpoints[checkpointPointer]
+                val isFound = checkpointIndex in foundCheckpointIndices
+                val startPos = length
+
+                withStyle(SpanStyle(color = if (isFound) Color(0xFF4CAF50) else Color.Unspecified)) {
+                    append(checkpointLabel)
+                }
+                if (!isFound) {
+                    addStringAnnotation(
+                        tag = "checkpoint",
+                        annotation = checkpointIndex.toString(),
+                        start = startPos,
+                        end = startPos + checkpointLabel.length
+                    )
+                }
+                checkpointPointer++
+            }
         }
 
         return AnnotatedTextResult(

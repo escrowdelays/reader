@@ -46,6 +46,32 @@ object EpubTextExtractor {
         }
     }
 
+    fun extractFullTextFromTxt(context: Context, uri: Uri): String {
+        return try {
+            val raw = context.contentResolver.openInputStream(uri)?.use {
+                it.bufferedReader().readText()
+            } ?: ""
+            normalizeText(raw)
+        } catch (e: Exception) {
+            Timber.e(e, "Error extracting text from TXT")
+            ""
+        }
+    }
+
+    /**
+     * Normalizes text the same way the reader's textToElements + buildAnnotatedText would,
+     * so that checkpoint indices match the actual AnnotatedString length.
+     */
+    private fun normalizeText(raw: String): String {
+        return raw.replace("\r\n", "\n")
+            .split("\n\n")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n\n") { paragraph ->
+                paragraph.split(Regex("\\s+")).joinToString(" ")
+            }
+    }
+
     /**
      * Выбирает 3 индекса чекпоинтов: в начале, середине и конце текста.
      * Индексы привязаны к символам в fullText.

@@ -27,6 +27,10 @@ object FileManager {
         return saveBookFile(context, uri, boxId, "pdf")
     }
 
+    fun saveTxtFile(context: Context, uri: Uri, boxId: String): String? {
+        return saveBookFile(context, uri, boxId, "txt")
+    }
+
     private fun saveBookFile(context: Context, uri: Uri, boxId: String, extension: String): String? {
         return try {
             val directory = booksDir(context)
@@ -56,8 +60,13 @@ object FileManager {
         return if (file.exists()) file else null
     }
 
+    fun getTxtFile(context: Context, boxId: String): File? {
+        val file = File(booksDir(context), "book_${boxId.lowercase()}.txt")
+        return if (file.exists()) file else null
+    }
+
     fun getBookFile(context: Context, boxId: String): File? {
-        return getEpubFile(context, boxId) ?: getPdfFile(context, boxId)
+        return getEpubFile(context, boxId) ?: getPdfFile(context, boxId) ?: getTxtFile(context, boxId)
     }
 
     fun deleteEpubFile(context: Context, boxId: String): Boolean {

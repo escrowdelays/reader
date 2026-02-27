@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.walletconnect.SolanaManager
 import com.example.walletconnect.ui.hooks.TxStatus
-import com.example.walletconnect.ui.theme.TirtoWritterFontFamily
+import com.example.walletconnect.ui.theme.BpmfHuninnFontFamily
 import com.solana.mobilewalletadapter.clientlib.ActivityResultSender
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -131,7 +131,7 @@ fun SweepBoxesScreen(
 
                         Text(
                             text = "Sweep Boxes",
-                            fontFamily = TirtoWritterFontFamily,
+                            fontFamily = BpmfHuninnFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp,
                             color = SwTextHi
@@ -272,14 +272,14 @@ fun SweepBoxesScreen(
                             }
                             Text(
                                 text = "Program not initialized",
-                                fontFamily = TirtoWritterFontFamily,
+                                fontFamily = BpmfHuninnFontFamily,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SwAmber
                             )
                             Text(
                                 text = "You need to call Initialize first. This will set your connected wallet as the program authority for sweep operations.",
-                                fontFamily = TirtoWritterFontFamily,
+                                fontFamily = BpmfHuninnFontFamily,
                                 fontSize = 13.sp,
                                 color = SwTextMid,
                                 lineHeight = 19.sp
@@ -310,7 +310,7 @@ fun SweepBoxesScreen(
                             ) {
                                 Text(
                                     text = "Initialize Program",
-                                    fontFamily = TirtoWritterFontFamily,
+                                    fontFamily = BpmfHuninnFontFamily,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = if (canInit) Color.White else SwTextLo
@@ -334,7 +334,7 @@ fun SweepBoxesScreen(
                                 CircularProgressIndicator(color = SwNavy, strokeWidth = 2.5.dp)
                                 Text(
                                     text = "Loading expired boxes…",
-                                    fontFamily = TirtoWritterFontFamily,
+                                    fontFamily = BpmfHuninnFontFamily,
                                     fontSize = 14.sp,
                                     color = SwTextLo
                                 )
@@ -380,7 +380,7 @@ fun SweepBoxesScreen(
                             }
                             Text(
                                 text = "expired box${if (expiredBoxes.size != 1) "es" else ""}",
-                                fontFamily = TirtoWritterFontFamily,
+                                fontFamily = BpmfHuninnFontFamily,
                                 fontSize = 13.sp,
                                 color = SwTextLo
                             )
@@ -564,7 +564,7 @@ private fun ExpiredBoxCard(
                 } else {
                     Text(
                         text = if (box.isToken) "Sweep Token Box" else "Sweep SOL Box",
-                        fontFamily = TirtoWritterFontFamily,
+                        fontFamily = BpmfHuninnFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         color = Color.White

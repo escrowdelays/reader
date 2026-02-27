@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.walletconnect.ui.theme.TirtoWritterFontFamily
+import com.example.walletconnect.ui.theme.BpmfHuninnFontFamily
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.lifecycle.ViewModelProvider
@@ -38,7 +39,9 @@ import com.example.walletconnect.ui.screens.CreateContractScreen
 import com.example.walletconnect.ui.screens.EventsScreen
 import com.example.walletconnect.ui.screens.EpubReaderScreen
 import com.example.walletconnect.ui.screens.InfoScreen
+import com.example.walletconnect.ui.screens.ReadScreen
 import com.example.walletconnect.ui.screens.SweepBoxesScreen
+import com.example.walletconnect.ui.screens.TxtReaderScreen
 import com.example.walletconnect.pdf.PdfReaderScreen
 import com.example.walletconnect.utils.BoxMetadataStore
 import com.example.walletconnect.utils.FileManager
@@ -85,12 +88,15 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             WalletConnectTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(NeumorphicBackground)
+                ) {
                     AppNavigation(
                         manager = solanaManager,
                         activity = this@MainActivity,
-                        activityResultSender = activityResultSender,
-                        modifier = Modifier.padding(innerPadding)
+                        activityResultSender = activityResultSender
                     )
                 }
             }
@@ -172,6 +178,18 @@ fun AppNavigation(
                         LaunchedEffect(Unit) { navController.popBackStack() }
                     }
                 }
+                "txt" -> {
+                    val txtFile = FileManager.getTxtFile(context, boxId)
+                    if (txtFile != null) {
+                        TxtReaderScreen(
+                            txtFile = txtFile,
+                            boxId = boxId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navController.popBackStack() }
+                    }
+                }
                 else -> {
                     val epubFile = FileManager.getEpubFile(context, boxId)
                     if (epubFile != null) {
@@ -198,6 +216,15 @@ fun AppNavigation(
                 manager = manager,
                 activityResultSender = activityResultSender,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("read_local") {
+            ReadScreen(
+                onBack = { navController.popBackStack() },
+                onOpenBook = { bookId ->
+                    navController.navigate("read_book/$bookId")
+                }
             )
         }
     }
@@ -321,45 +348,31 @@ fun HomeScreen(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
-                if (isConnected && walletAddress == "XQFb5ZRP7GC9Sn11iKM7XNGEvgdXehLwRswMxGVHwWU") {
-                    Text(
-                        text = "sweep",
-                        fontSize = 16.sp,
-                        fontFamily = TirtoWritterFontFamily,
-                        color = NeumorphicText,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { navController.navigate("sweep_boxes") }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
+
                 
                 Text(
-                    text = "exit",
+                    text = "read",
                     fontSize = 16.sp,
                     fontFamily = TirtoWritterFontFamily,
                     color = NeumorphicText,
                     modifier = Modifier
                         .padding(top = 16.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { 
-                            (context as? ComponentActivity)?.finish()
-                        }
+                        .clickable { navController.navigate("read_local") }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
             
             // Колонтитул внизу
             Text(
-                text = "escrowbox.github.io",
+                text = "escrowdelay.github.io",
                 fontSize = 15.sp,
                 fontFamily = TirtoWritterFontFamily,
                 color = NeumorphicTextSecondary,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { uriHandler.openUri("https://escrowbox.github.io/") }
+                    .clickable { uriHandler.openUri("https://escrowdelay.github.io/") }
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
@@ -558,7 +571,7 @@ fun SessionScreen(
                         }
                         Text(
                             text = "Кошелек подключен",
-                            fontFamily = TirtoWritterFontFamily,
+                            fontFamily = BpmfHuninnFontFamily,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             color = NeumorphicText,
@@ -594,7 +607,7 @@ fun SessionScreen(
                     } else {
                         Text(
                             text = "Баланс: ${solBalance.ifBlank { "—" }}",
-                            fontFamily = TirtoWritterFontFamily,
+                            fontFamily = BpmfHuninnFontFamily,
                             fontSize = 16.sp,
                             color = NeumorphicText
                         )
@@ -603,7 +616,7 @@ fun SessionScreen(
                     // Сеть
                     Text(
                         text = "Сеть: Solana Mainnet",
-                        fontFamily = TirtoWritterFontFamily,
+                        fontFamily = BpmfHuninnFontFamily,
                         fontSize = 16.sp,
                         color = NeumorphicText
                     )
@@ -615,7 +628,7 @@ fun SessionScreen(
                     
                     Text(
                         text = "Адрес: $shortAddress",
-                        fontFamily = TirtoWritterFontFamily,
+                        fontFamily = BpmfHuninnFontFamily,
                         fontSize = 16.sp,
                         color = NeumorphicText
                     )

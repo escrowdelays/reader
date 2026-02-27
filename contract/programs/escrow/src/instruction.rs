@@ -13,7 +13,7 @@ pub enum EscrowInstruction {
     /// 2. `[]` System program
     Initialize,
 
-    /// Create a new escrow box
+    /// Create a new escrow delay
     /// Accounts:
     /// 0. `[writable, signer]` Sender account
     /// 1. `[writable]` Box PDA account
@@ -24,7 +24,7 @@ pub enum EscrowInstruction {
         amount: u64,
     },
 
-    /// Open an escrow box (before deadline)
+    /// Open an escrow delay (before deadline)
     /// Accounts:
     /// 0. `[writable]` Box PDA account
     /// 1. `[writable]` Recipient account
@@ -37,7 +37,7 @@ pub enum EscrowInstruction {
     /// 2. `[writable]` Authority account
     SweepBox,
 
-    /// Create a new token escrow box
+    /// Create a new token escrow delay
     /// Accounts:
     /// 0. `[writable, signer]` Sender account
     /// 1. `[writable]` Sender token account (ATA)
@@ -54,7 +54,7 @@ pub enum EscrowInstruction {
         amount: u64,
     },
 
-    /// Open a token escrow box (before deadline)
+    /// Open a token escrow delay (before deadline)
     /// Accounts:
     /// 0. `[writable]` TokenBox PDA account
     /// 1. `[writable]` Vault ATA

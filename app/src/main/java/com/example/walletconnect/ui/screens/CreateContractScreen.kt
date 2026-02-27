@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.walletconnect.R
-import com.example.walletconnect.ui.theme.TirtoWritterFontFamily
+import com.example.walletconnect.ui.theme.BpmfHuninnFontFamily
 import com.example.walletconnect.ui.theme.NeumorphicBackground
 import com.example.walletconnect.ui.theme.NeumorphicText
 import com.example.walletconnect.ui.theme.NeumorphicTextSecondary
@@ -190,12 +190,12 @@ private fun premFieldColors() = OutlinedTextFieldDefaults.colors(
     cursorColor          = Color(0xFF2D3A4F),
     focusedPlaceholderColor   = PremTextLo,
     unfocusedPlaceholderColor = PremTextLo,
-    focusedContainerColor     = PremSurface,
-    unfocusedContainerColor   = PremSurfaceLo,
+    focusedContainerColor     = Color.Transparent,
+    unfocusedContainerColor   = Color.Transparent,
     errorBorderColor     = PremError,
     errorLabelColor      = PremError,
     errorTextColor       = PremTextHi,
-    errorContainerColor  = Color(0xFFEDE0E0),
+    errorContainerColor  = Color.Transparent,
     errorCursorColor     = PremError,
     errorSupportingTextColor = PremError
 )
@@ -266,6 +266,10 @@ fun CreateContractScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val isKeystoreAvailable = remember {
+        try { VaultManager.isKeystoreAvailable(context) } catch (_: Exception) { false }
+    }
 
     var days by remember { mutableStateOf("") }
     var ethAmount by remember { mutableStateOf("") }
@@ -363,7 +367,7 @@ fun CreateContractScreen(
         }
     }
 
-    fun extractPdfTitle(ctx: android.content.Context, uri: Uri): String {
+    fun extractDisplayName(ctx: android.content.Context, uri: Uri, fallback: String): String {
         return try {
             val cursor = ctx.contentResolver.query(uri, null, null, null, null)
             var name: String? = null
@@ -373,9 +377,9 @@ fun CreateContractScreen(
                     if (idx >= 0) name = it.getString(idx)
                 }
             }
-            name?.removeSuffix(".pdf")?.trim()?.ifBlank { null } ?: "PDF file"
+            name?.substringBeforeLast(".")?.trim()?.ifBlank { null } ?: fallback
         } catch (e: Exception) {
-            "PDF file"
+            fallback
         }
     }
 
@@ -383,22 +387,32 @@ fun CreateContractScreen(
     var generatedPrivateKey by remember { mutableStateOf<String?>(null) }
 
     val epubLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
-            selectedEpubUri  = it
-            selectedEpubName = extractBookTitle(it)
+            selectedEpubUri = it
+            val mimeType = context.contentResolver.getType(it)
+            val isTxt = mimeType == "text/plain"
+            selectedEpubName = if (isTxt) extractDisplayName(context, it, "TXT file")
+                               else extractBookTitle(it)
             scope.launch {
                 val result = VaultManager.generateAndSaveKeyPair(context)
                 generatedAddress    = result.first
                 generatedPrivateKey = result.second
                 if (result.first != "Error") {
                     val boxId = result.first
-                    FileManager.saveEpubFile(context, it, boxId)
+                    if (isTxt) {
+                        FileManager.saveTxtFile(context, it, boxId)
+                        BoxMetadataStore.setFileType(context, boxId, "txt")
+                    } else {
+                        FileManager.saveEpubFile(context, it, boxId)
+                        BoxMetadataStore.setFileType(context, boxId, "epub")
+                    }
                     selectedEpubName?.let { name ->
                         BoxMetadataStore.setBookTitle(context, boxId, name)
                     }
-                    val fullText = EpubTextExtractor.extractFullText(context, it)
+                    val fullText = if (isTxt) EpubTextExtractor.extractFullTextFromTxt(context, it)
+                                   else EpubTextExtractor.extractFullText(context, it)
                     val indices  = EpubTextExtractor.pickCheckpointIndices(fullText)
                     CheckpointIndexStore.saveIndices(context, boxId, indices)
                     CheckpointIndexStore.saveCheckpointLabel(context, boxId, " ${checkpointLabel.trim()} ")
@@ -414,10 +428,11 @@ fun CreateContractScreen(
             timerEpubUri = it
             val mimeType = context.contentResolver.getType(it)
             val isPdf = mimeType == "application/pdf"
-            timerEpubName = if (isPdf) {
-                extractPdfTitle(context, it)
-            } else {
-                extractBookTitle(it)
+            val isTxt = mimeType == "text/plain"
+            timerEpubName = when {
+                isPdf -> extractDisplayName(context, it, "PDF file")
+                isTxt -> extractDisplayName(context, it, "TXT file")
+                else  -> extractBookTitle(it)
             }
             scope.launch {
                 val result = VaultManager.generateAndSaveKeyPair(context)
@@ -425,12 +440,19 @@ fun CreateContractScreen(
                 timerGeneratedPrivateKey = result.second
                 if (result.first != "Error") {
                     val boxId = result.first
-                    if (isPdf) {
-                        FileManager.savePdfFile(context, it, boxId)
-                        BoxMetadataStore.setFileType(context, boxId, "pdf")
-                    } else {
-                        FileManager.saveEpubFile(context, it, boxId)
-                        BoxMetadataStore.setFileType(context, boxId, "epub")
+                    when {
+                        isPdf -> {
+                            FileManager.savePdfFile(context, it, boxId)
+                            BoxMetadataStore.setFileType(context, boxId, "pdf")
+                        }
+                        isTxt -> {
+                            FileManager.saveTxtFile(context, it, boxId)
+                            BoxMetadataStore.setFileType(context, boxId, "txt")
+                        }
+                        else -> {
+                            FileManager.saveEpubFile(context, it, boxId)
+                            BoxMetadataStore.setFileType(context, boxId, "epub")
+                        }
                     }
                     timerEpubName?.let { name ->
                         BoxMetadataStore.setBookTitle(context, boxId, name)
@@ -644,7 +666,7 @@ fun CreateContractScreen(
                         ) {
                             Text(
                                 text = ethBalance.ifBlank { "0.0000 SOL" },
-                                fontFamily = TirtoWritterFontFamily,
+                                fontFamily = BpmfHuninnFontFamily,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = PremCyan
@@ -681,7 +703,7 @@ fun CreateContractScreen(
                             ) {
                                 Text(
                                     text = title,
-                                    fontFamily = TirtoWritterFontFamily,
+                                    fontFamily = BpmfHuninnFontFamily,
                                     fontSize = 14.sp,
                                     fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selectedTabIndex == index) Color.White else PremTextMid
@@ -709,6 +731,22 @@ fun CreateContractScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
 
+                        if (!isKeystoreAvailable) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFDC2626), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Text(
+                                    text = "Secure key storage unavailable. Cannot create commitments on this device.",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
                         // ── Book ─────────────────────────────────────────────
                         SectionLabel("Book")
                         Box(
@@ -731,7 +769,7 @@ fun CreateContractScreen(
                                     Brush.linearGradient(listOf(Color(0x60FFFFFF), Color(0x20FFFFFF))),
                                     RoundedCornerShape(16.dp)
                                 )
-                                .clickable { epubLauncher.launch("application/epub+zip") },
+                                .clickable { if (isKeystoreAvailable) epubLauncher.launch(arrayOf("application/epub+zip", "text/plain")) },
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -749,7 +787,7 @@ fun CreateContractScreen(
                                     text = if (selectedEpubName != null) {
                                         if (selectedEpubName!!.length > 40) selectedEpubName!!.take(37) + "…"
                                         else selectedEpubName!!
-                                    } else "Choose EPUB file",
+                                    } else "Choose EPUB / TXT file",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
@@ -978,6 +1016,22 @@ fun CreateContractScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
 
+                        if (!isKeystoreAvailable) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFDC2626), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Text(
+                                    text = "Secure key storage unavailable. Cannot create commitments on this device.",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
                         // ── Book ─────────────────────────────────────────────
                         SectionLabel("Book")
                         Box(
@@ -1000,7 +1054,7 @@ fun CreateContractScreen(
                                     Brush.linearGradient(listOf(Color(0x60FFFFFF), Color(0x20FFFFFF))),
                                     RoundedCornerShape(16.dp)
                                 )
-                                .clickable { timerEpubLauncher.launch(arrayOf("application/epub+zip", "application/pdf")) },
+                                .clickable { if (isKeystoreAvailable) timerEpubLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain")) },
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -1018,7 +1072,7 @@ fun CreateContractScreen(
                                     text = if (timerEpubName != null) {
                                         if (timerEpubName!!.length > 40) timerEpubName!!.take(37) + "…"
                                         else timerEpubName!!
-                                    } else "Choose EPUB / PDF file",
+                                    } else "Choose EPUB / PDF / TXT file",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,

@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.walletconnect.epub.EpubReaderViewModel
 import com.example.walletconnect.epub.PaginationResult
 import com.example.walletconnect.sensors.MotionDetector
+import com.example.walletconnect.utils.ReaderThemeStore
 import com.example.walletconnect.utils.TimerContractStore
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.collectLatest
@@ -312,9 +313,7 @@ private fun highlightCheckpoints(
                 append(fullText.subSequence(currentIndex, annotation.start))
             }
             
-            // Добавляем чекпоинт с красным цветом (перезаписываем цвет)
-            withStyle(style = SpanStyle(color = Color.Black)) {
-                // Извлекаем только текст чекпоинта без стилей
+            withStyle(style = SpanStyle(color = Color.Unspecified)) {
                 val checkpointText = fullText.subSequence(annotation.start, annotation.end).text
                 append(checkpointText)
             }
@@ -358,8 +357,34 @@ fun PageContent(
     checkpointIndices: List<Int> = emptyList(),
     foundCheckpointIndices: Set<Int> = emptySet()
 ) {
+    val context = LocalContext.current
     var showSlider by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableFloatStateOf(currentPage.toFloat()) }
+    var isDarkMode by remember { mutableStateOf(ReaderThemeStore.isDarkMode(context)) }
+
+    // ── Theme colours ────────────────────────────────────────────────────────
+    val pageBg           = if (isDarkMode) Color(0xFF1A1A2E) else Color(0xFFFFF8E1)
+    val textColor        = if (isDarkMode) Color(0xFFDDDDEE) else Color(0xFF1C1B1F)
+    val barBgBrush       = if (isDarkMode)
+        Brush.verticalGradient(listOf(Color(0xFF1E1F2E), Color(0xFF1A1B27), Color(0xFF16171F)))
+        else RdrBgBrush
+    val barBorderBrush   = if (isDarkMode)
+        Brush.linearGradient(listOf(Color(0xFF3A3B4E), Color(0xFF2A2B3C)))
+        else RdrBorderBrush
+    val accentColor      = if (isDarkMode) Color(0xFF9999CC) else RdrNavy
+    val accentBrush      = if (isDarkMode)
+        Brush.linearGradient(listOf(Color(0xFF8888CC), Color(0xFF6666AA)))
+        else RdrAccentBrush
+    val trackColor       = if (isDarkMode) Color(0xFF3A3A5C) else RdrBorderLo
+    val sliderTextLo     = if (isDarkMode) Color(0xFF6A6A8A) else RdrTextLo
+    val pgCountColor     = if (isDarkMode) Color(0xFF6A6A8A) else Color.Gray
+    val progressTrack    = if (isDarkMode) Color(0xFF3A3A5C) else Color.LightGray.copy(alpha = 0.3f)
+    val cpBubbleBg       = if (isDarkMode) Color(0xFF2D2D4E) else RdrSurface
+    val cpBubbleBorder   = if (isDarkMode) Color(0xFF4A4A7A) else RdrBorderLo
+    val barContentColor  = if (isDarkMode) Color(0xFFCCCCDD) else RdrNavy
+
+    val effectiveTextStyle = textStyle.copy(color = textColor)
+    // ────────────────────────────────────────────────────────────────────────
 
     val safePageCount = totalPages.coerceAtLeast(1)
 
@@ -368,10 +393,8 @@ fun PageContent(
         pageCount = { safePageCount }
     )
 
-    // Tracks the last page set externally (slider, ViewModel) to distinguish from user swipes
     var lastExternalPage by remember { mutableIntStateOf(currentPage) }
 
-    // Sync ViewModel -> Pager: when currentPage changes externally (slider, repagination)
     LaunchedEffect(currentPage, safePageCount) {
         val targetPage = currentPage.coerceIn(0, (safePageCount - 1).coerceAtLeast(0))
         lastExternalPage = targetPage
@@ -384,7 +407,6 @@ fun PageContent(
         }
     }
 
-    // Sync Pager -> ViewModel: detect user swipe completion
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.collectLatest { settledPage ->
             if (settledPage != lastExternalPage) {
@@ -402,6 +424,7 @@ fun PageContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(pageBg)
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { showSlider = !showSlider })
             }
@@ -438,7 +461,7 @@ fun PageContent(
 
                         ClickableText(
                             text = annotatedText,
-                            style = textStyle,
+                            style = effectiveTextStyle,
                             modifier = Modifier.fillMaxSize(),
                             onClick = { offset ->
                                 val annotations = annotatedText.getStringAnnotations(
@@ -461,24 +484,24 @@ fun PageContent(
                 }
             }
 
-            // Progress bar — uses the pager's settled page for smooth tracking
+            // Progress bar
             val displayPage = pagerState.settledPage.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Text(
                     text = "${displayPage + 1}/$totalPages",
                     modifier = Modifier.align(Alignment.End),
-                    style = TextStyle(fontSize = 10.sp, color = Color.Gray)
+                    style = TextStyle(fontSize = 10.sp, color = pgCountColor)
                 )
                 LinearProgressIndicator(
                     progress = { if (totalPages > 0) (displayPage + 1).toFloat() / totalPages else 0f },
                     modifier = Modifier.fillMaxWidth().height(2.dp),
-                    color = Color.Gray,
-                    trackColor = Color.LightGray.copy(alpha = 0.3f),
+                    color = accentColor,
+                    trackColor = progressTrack,
                 )
             }
         }
 
-        // Top bar
+        // ── Top bar ──────────────────────────────────────────────────────────
         AnimatedVisibility(
             visible = showSlider,
             modifier = Modifier.align(Alignment.TopCenter),
@@ -488,6 +511,7 @@ fun PageContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset(y = (-2).dp)
                     .shadow(
                         elevation = 6.dp,
                         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
@@ -496,10 +520,10 @@ fun PageContent(
                         spotColor = ShadowSpot
                     )
                     .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                    .background(RdrBgBrush)
+                    .background(barBgBrush)
                     .border(
                         width = 1.dp,
-                        brush = RdrBorderBrush,
+                        brush = barBorderBrush,
                         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                     )
             ) {
@@ -511,18 +535,21 @@ fun PageContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    // Left cluster: back
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = {
                             showSlider = false
                             onBack()
                         }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "back",
+                                tint = barContentColor
+                            )
                         }
-                        Text(text = "back")
                     }
-                    
+
+                    // Right cluster: checkpoints + motion + timer
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -544,12 +571,12 @@ fun PageContent(
                                                 spotColor = ShadowSpot
                                             )
                                             .background(
-                                                if (found) Color(0xFF16A34A) else RdrSurface,
+                                                if (found) Color(0xFF16A34A) else cpBubbleBg,
                                                 CircleShape
                                             )
                                             .border(
                                                 1.5.dp,
-                                                if (found) Color(0xFF16A34A) else RdrBorderLo,
+                                                if (found) Color(0xFF16A34A) else cpBubbleBorder,
                                                 CircleShape
                                             )
                                     )
@@ -575,13 +602,12 @@ fun PageContent(
                                 modifier = Modifier.size(28.dp)
                             )
                         }
-                        
+
                         remainingSeconds?.let { seconds ->
                             if (seconds >= 0) {
                                 val hours = seconds / 3600
                                 val minutes = (seconds % 3600) / 60
                                 val secs = seconds % 60
-                                
                                 Text(
                                     text = String.format("%02d:%02d:%02d", hours, minutes, secs),
                                     style = MaterialTheme.typography.titleMedium,
@@ -589,12 +615,28 @@ fun PageContent(
                                 )
                             }
                         }
+
+                        // Theme toggle (rightmost)
+                        val themeIcon = remember(isDarkMode) {
+                            val path = if (isDarkMode) "icons/moon.png" else "icons/sun.png"
+                            BitmapFactory.decodeStream(context.assets.open(path))
+                        }
+                        IconButton(onClick = {
+                            isDarkMode = !isDarkMode
+                            ReaderThemeStore.setDarkMode(context, isDarkMode)
+                        }) {
+                            Image(
+                                bitmap = themeIcon.asImageBitmap(),
+                                contentDescription = if (isDarkMode) "light mode" else "dark mode",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Bottom slider
+        // ── Bottom slider ────────────────────────────────────────────────────
         AnimatedVisibility(
             visible = showSlider,
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -604,6 +646,7 @@ fun PageContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset(y = 2.dp)
                     .shadow(
                         elevation = 10.dp,
                         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -612,12 +655,12 @@ fun PageContent(
                         spotColor = ShadowSpot
                     )
                     .background(
-                        RdrBgBrush,
+                        barBgBrush,
                         RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                     )
                     .border(
                         width = 1.dp,
-                        brush = RdrBorderBrush,
+                        brush = barBorderBrush,
                         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                     )
             ) {
@@ -637,7 +680,7 @@ fun PageContent(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 2.sp,
-                                color = RdrNavy
+                                color = accentColor
                             )
                         )
                         Text(
@@ -645,7 +688,7 @@ fun PageContent(
                             style = TextStyle(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = RdrTextLo
+                                color = sliderTextLo
                             )
                         )
                     }
@@ -658,9 +701,9 @@ fun PageContent(
                         },
                         valueRange = 0f..(totalPages - 1).coerceAtLeast(0).toFloat(),
                         colors = SliderDefaults.colors(
-                            thumbColor = RdrNavy,
-                            activeTrackColor = RdrNavy,
-                            inactiveTrackColor = RdrBorderLo,
+                            thumbColor = accentColor,
+                            activeTrackColor = accentColor,
+                            inactiveTrackColor = trackColor,
                             activeTickColor = Color.Transparent,
                             inactiveTickColor = Color.Transparent
                         ),
@@ -669,7 +712,7 @@ fun PageContent(
                                 modifier = Modifier
                                     .size(22.dp)
                                     .shadow(6.dp, CircleShape, ambientColor = ShadowAmbient, spotColor = ShadowSpot)
-                                    .background(RdrAccentBrush, CircleShape)
+                                    .background(accentBrush, CircleShape)
                             )
                         }
                     )

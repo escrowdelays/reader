@@ -41,6 +41,10 @@ import com.funkatronics.encoders.Base58
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import com.example.walletconnect.utils.BoxMetadataStore
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import java.util.concurrent.TimeUnit
 
 /**
  * SolanaManager - управляет подключением к Solana кошельку и взаимодействием с Escrow программой.
@@ -95,8 +99,18 @@ class SolanaManager(private val context: Context) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    // SharedPreferences для сохранения сессии
-    private val prefs = context.getSharedPreferences("solana_wallet_session", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "solana_wallet_session_secure",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     // ConnectionIdentity - используется для создания MobileWalletAdapter
     private val connectionIdentity = ConnectionIdentity(
@@ -176,14 +190,18 @@ class SolanaManager(private val context: Context) : ViewModel() {
 
         // Identity URI - Максимально уникальный URI для избежания кэша Phantom
         // Используем timestamp чтобы Phantom точно воспринял как новое приложение
-        val IDENTITY_URI: Uri = Uri.parse("https://escrowbox.github.io/")
+        val IDENTITY_URI: Uri = Uri.parse("https://escrowdelay.github.io/")
         const val IDENTITY_NAME = "Escrow reader"  
         // ICON_URI - относительный путь для favicon
         val ICON_URI: Uri = Uri.parse("favicon.ico")
     }
 
     private val httpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder().build()
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
     }
 
     private val programIdBytes: ByteArray by lazy {
@@ -248,7 +266,7 @@ class SolanaManager(private val context: Context) : ViewModel() {
                         val address = Base58.encodeToString(authResult.publicKey)
                         Timber.d("✅ Успешная авторизация!")
                         Timber.d("   Адрес: $address")
-                        Timber.d("   AuthToken: ${authResult.authToken.take(20)}...")
+                        Timber.d("   AuthToken: [redacted]")
                         
                         _walletAddress.postValue(address)
                         _isConnected.postValue(true)
@@ -451,7 +469,7 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 val balance = getBalance(address)
                 val sol = formatSol(balance, UI_FRACTION_DIGITS)
                 _nativeSolBalance.postValue("$sol SOL")
-                
+
                 // Загружаем боксы пользователя (из локального хранилища)
                 fetchUserBoxes()
             } catch (e: Exception) {
@@ -459,6 +477,20 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 _errorMessage.postValue("Ошибка RPC: ${e.message}")
             } finally {
                 _balancesLoading.postValue(false)
+            }
+        }
+    }
+
+    private fun refreshBalanceOnly() {
+        val address = getSelectedAddress()
+        if (address.isBlank()) return
+        scope.launch {
+            try {
+                val balance = getBalance(address)
+                val sol = formatSol(balance, UI_FRACTION_DIGITS)
+                _nativeSolBalance.postValue("$sol SOL")
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Ошибка обновления баланса")
             }
         }
     }
@@ -867,21 +899,23 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 Timber.d("   Amount: $amount lamports")
                 Timber.d("   Transaction size: ${serializedTx.size} bytes")
                 
-                // ДИАГНОСТИКА: Симулируем транзакцию через RPC перед отправкой в кошелёк
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("❌ СИМУЛЯЦИЯ ПРОВАЛИЛАСЬ: $simError")
-                    _errorMessage.postValue("Simulation failed: $simError")
-                    // Продолжаем всё равно, чтобы показать ошибку в кошельке тоже
-                } else {
-                    Timber.d("✅ Симуляция успешна, отправляем в кошелёк")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    _transactionStatus.postValue("")
+                    currentPendingContractId?.let { removePendingContract(it) }
+                    currentPendingContractId = null
+                    currentBoxPda = null
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
+                Timber.d("✅ Симуляция успешна, отправляем в кошелёк")
                 
                 _transactionStatus.postValue("Подписание в кошельке...")
                 
-                // Переключаемся на Main поток для вызова transact()
                 withContext(Dispatchers.Main) {
-                    // Timber.d("📤📤📤 ОТПРАВКА CreateBox ТРАНЗАКЦИИ 📤📤📤")
                     // Timber.d("   Размер: ${serializedTx.size} bytes")
                     // Timber.d("   Base58: ${Base58.encodeToString(serializedTx).take(100)}...")
                     // Timber.d("   Sender: ${owner}")
@@ -1170,24 +1204,27 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 Timber.d("   Amount: $amount")
                 Timber.d("   Transaction size: ${serializedTx.size} bytes")
                 
-                // ДИАГНОСТИКА: Симулируем транзакцию через RPC перед отправкой в кошелёк
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("❌ СИМУЛЯЦИЯ TOKEN ТРАНЗАКЦИИ ПРОВАЛИЛАСЬ: $simError")
-                    _errorMessage.postValue("Simulation failed: $simError")
-                } else {
-                    Timber.d("✅ Симуляция token транзакции успешна")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    _transactionStatus.postValue("")
+                    currentPendingContractId?.let { removePendingContract(it) }
+                    currentPendingContractId = null
+                    currentBoxPda = null
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
+                Timber.d("✅ Симуляция token транзакции успешна")
                 
                 _transactionStatus.postValue("Подписание в кошельке...")
                 
-                // Переключаемся на Main поток для вызова transact()
                 withContext(Dispatchers.Main) {
                     val walletAdapter = MobileWalletAdapter(connectionIdentity).apply {
                         blockchain = Solana.Mainnet
                     }
                     val signResult = walletAdapter.transact(sender) { authResult ->
-                        // transact() уже авторизовал с chain = "solana:mainnet"
                         authToken = authResult.authToken
                         connectedPublicKey = authResult.publicKey
                         val address = Base58.encodeToString(authResult.publicKey)
@@ -1312,7 +1349,7 @@ class SolanaManager(private val context: Context) : ViewModel() {
                     currentPendingContractId = null
                     currentBoxPda = null
                     
-                    refreshBalances()
+                    refreshBalanceOnly()
                 }
                 
                 attempts++
@@ -1320,9 +1357,9 @@ class SolanaManager(private val context: Context) : ViewModel() {
             
             if (!confirmed) {
                 Timber.w("⏱ Token транзакция не подтверждена за 120 сек — blockhash протух")
-                _txStatus.value = TxStatus.SUCCESS
+                _txStatus.value = TxStatus.ERROR
+                _errorMessage.postValue("Транзакция не подтверждена. Проверьте статус в Solscan.")
                 
-                // Удаляем pending контракт — транзакция уже точно не пройдёт
                 currentPendingContractId?.let { removePendingContract(it) }
                 currentPendingContractId = null
                 currentBoxPda = null
@@ -1438,20 +1475,22 @@ class SolanaManager(private val context: Context) : ViewModel() {
                     )
                 )
                 
-                // Симулируем транзакцию перед отправкой
                 _transactionStatus.postValue("Симуляция транзакции...")
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("❌ СИМУЛЯЦИЯ OpenBox ПРОВАЛИЛАСЬ: $simError")
-                    _errorMessage.postValue("Симуляция OpenBox: $simError")
-                    // Продолжаем всё равно - кошелек может обработать по-другому
-                } else {
-                    Timber.d("✅ Симуляция OpenBox успешна")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    _transactionStatus.postValue("")
+                    _openingBoxId.postValue(null)
+                    currentOpeningBoxId = null
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
+                Timber.d("✅ Симуляция OpenBox успешна")
                 
                 _transactionStatus.postValue("Подписание в кошельке...")
                 
-                // Переключаемся на Main поток для вызова transact()
                 withContext(Dispatchers.Main) {
                     Timber.d("📤 Отправка OpenBox транзакции в кошелек")
                     
@@ -1658,15 +1697,19 @@ class SolanaManager(private val context: Context) : ViewModel() {
                     )
                 )
                 
-                // Симулируем транзакцию перед отправкой
                 _transactionStatus.postValue("Симуляция транзакции...")
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("❌ СИМУЛЯЦИЯ OpenBoxToken ПРОВАЛИЛАСЬ: $simError")
-                    _errorMessage.postValue("Симуляция OpenBoxToken: $simError")
-                } else {
-                    Timber.d("✅ Симуляция OpenBoxToken успешна")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    _transactionStatus.postValue("")
+                    _openingBoxId.postValue(null)
+                    currentOpeningBoxId = null
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
+                Timber.d("✅ Симуляция OpenBoxToken успешна")
                 
                 _transactionStatus.postValue("Подписание в кошельке...")
                 
@@ -1952,7 +1995,7 @@ class SolanaManager(private val context: Context) : ViewModel() {
                     currentPendingContractId = null
                     currentBoxPda = null
                     
-                    refreshBalances()
+                    refreshBalanceOnly()
                 }
                 
                 attempts++
@@ -1960,10 +2003,9 @@ class SolanaManager(private val context: Context) : ViewModel() {
             
             if (!confirmed) {
                 Timber.w("⏱ Транзакция не подтверждена за 120 сек — blockhash протух, транзакция не пройдёт")
-                _txStatus.value = TxStatus.SUCCESS
+                _txStatus.value = TxStatus.ERROR
+                _errorMessage.postValue("Транзакция не подтверждена. Проверьте статус в Solscan.")
                 
-                // Удаляем pending контракт — на Solana blockhash живёт ~60 сек,
-                // если за 120 сек не подтвердилось, транзакция уже точно не пройдёт
                 currentPendingContractId?.let { boxId ->
                     removePendingContract(boxId)
                 }
@@ -2794,31 +2836,28 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 BoxMetadataStore.getCreatedAt(context, event.id) ?: 0L
             }
             
-            // ОПТИМИЗАЦИЯ: Обновляем только если список действительно изменился
-            // Используем более строгую проверку для предотвращения лишних обновлений
             val currentEvents = _boxCreatedEvents.value ?: emptyList()
-            val currentIds = currentEvents.map { it.id }.toSet()
             val newIds = sortedEvents.map { it.id }.toSet()
             
-            // Обновляем только если:
-            // 1. Размер изменился ИЛИ
-            // 2. Набор ID изменился ИЛИ
-            // 3. Это первая загрузка (currentEvents пустой)
-            if (currentEvents.isEmpty() || 
-                currentEvents.size != sortedEvents.size || 
-                currentIds != newIds) {
-                // Дополнительная проверка: не обновляем если списки идентичны
-                if (currentEvents != sortedEvents) {
-                    _boxCreatedEvents.postValue(sortedEvents)
-                }
+            // Сохраняем события, которые уже были в памяти, но ещё не появились
+            // в getProgramAccounts (задержка пропагации RPC-ноды после подтверждения)
+            val recentlyAdded = currentEvents.filter { it.id !in newIds }
+            val merged = (sortedEvents + recentlyAdded).sortedByDescending { event ->
+                BoxMetadataStore.getCreatedAt(context, event.id) ?: 0L
+            }
+            
+            if (currentEvents.size != merged.size ||
+                currentEvents.map { it.id }.toSet() != merged.map { it.id }.toSet()) {
+                _boxCreatedEvents.postValue(merged)
             }
             
             // Удаляем pending контракты, которые уже появились в блокчейне
+            val allKnownIds = merged.map { it.id }.toSet()
             val currentPending = _pendingContracts.value ?: emptyList()
             if (currentPending.isNotEmpty()) {
                 val remainingPending = currentPending.filter { pending ->
                     // Оставляем только те pending контракты, которых еще нет в блокчейне
-                    !newIds.contains(pending.id)
+                    !allKnownIds.contains(pending.id)
                 }
                 
                 // Обновляем список pending контрактов если что-то изменилось
@@ -3407,7 +3446,10 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("Initialize simulation failed: $simError")
-                    _errorMessage.postValue("Simulation failed: $simError")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
 
                 withContext(Dispatchers.Main) {
@@ -3718,7 +3760,10 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("SweepBox simulation failed: $simError")
-                    _errorMessage.postValue("Simulation failed: $simError")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
 
                 withContext(Dispatchers.Main) {
@@ -3849,7 +3894,10 @@ class SolanaManager(private val context: Context) : ViewModel() {
                 val simError = simulateTransaction(serializedTx)
                 if (simError != null) {
                     Timber.e("SweepBoxToken simulation failed: $simError")
-                    _errorMessage.postValue("Simulation failed: $simError")
+                    _txStatus.value = TxStatus.ERROR
+                    _errorMessage.postValue("Транзакция не пройдёт: $simError")
+                    resetTxStatusAfterDelay()
+                    return@launch
                 }
 
                 withContext(Dispatchers.Main) {
@@ -3926,7 +3974,8 @@ class SolanaManager(private val context: Context) : ViewModel() {
 
             if (!confirmed) {
                 Timber.w("Sweep transaction not confirmed within 120s")
-                _txStatus.value = TxStatus.SUCCESS
+                _txStatus.value = TxStatus.ERROR
+                _errorMessage.postValue("Sweep не подтверждён. Проверьте статус в Solscan.")
             }
             resetTxStatusAfterDelay()
         } catch (e: Exception) {

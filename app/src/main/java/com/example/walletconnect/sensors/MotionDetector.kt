@@ -32,7 +32,7 @@ class MotionDetector(context: Context) : SensorEventListener {
     private val windowSizeSeconds = 5 // Размер окна анализа
     private val windowStepSeconds = 1 // Шаг смещения окна
     private val threshold = 0.15 // Порог для std(a) (подобран экспериментально)
-    private val stationaryWindowsRequired = 300 // Количество окон подряд для STATIONARY (60 секунд = 1 минута)
+    private val stationaryWindowsRequired = 300 // Количество окон подряд для STATIONARY (300 секунд = 5 минут)
     
     // Буфер для хранения данных акселерометра
     private val samplesPerWindow = samplingRateHz * windowSizeSeconds
