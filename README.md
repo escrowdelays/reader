@@ -16,12 +16,11 @@ A checkpoint is any word or sentence, for example, \"This is a checkpoint!!!\", 
 In Timer mode, you don't need to look for checkpoints — just select a book and set how many hours you plan to spend on it. Once you start flipping through the pages, the timer begins. If you don’t flip a page for more than 5 minutes, the timer pauses until you continue. Reading is not required, but you must reset the timer before the deadline. If you fail to do so, you will lose your deposit.
 
 ---
-###  Smart Contract Addresses
+###  📬 Contact
 
 6Qz6EaxsD6LZewhM5NAw8ZkHTFcEju2XUAkbnpj9ZeAW
 
 
-## 📬 Contact
 - **download apk:** [https://apps.escrowdelays.com](https://apps.escrowdelays.com)
 - **Telegram:** [https://t.me/escrowdelays](https://t.me/escrowdelays)
 - **Email:** [stephenescrow@gmail.com](mailto:stephenescrow@gmail.com)
