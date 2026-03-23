@@ -21,6 +21,6 @@ In Timer mode, you don't need to look for checkpoints — just select a book and
 6Qz6EaxsD6LZewhM5NAw8ZkHTFcEju2XUAkbnpj9ZeAW
 
 
-- **download apk:** [https://apps.escrowdelays.com](https://apps.escrowdelays.com)
+- **download:** [https://apps.escrowdelays.com](https://apps.escrowdelays.com)
 - **Telegram:** [https://t.me/escrowdelays](https://t.me/escrowdelays)
 - **Email:** [stephenescrow@gmail.com](mailto:stephenescrow@gmail.com)
