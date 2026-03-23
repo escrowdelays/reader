@@ -19,10 +19,10 @@ In Timer mode, you don't need to look for checkpoints — just select a book and
 ---
 
 
--**network**: Solana  
--**Platform**: Android / minSdk 24    
--**Architecture**: Fully client-side. No backend.  
--**contract address**: 6Qz6EaxsD6LZewhM5NAw8ZkHTFcEju2XUAkbnpj9ZeAW  
+- **network**: Solana  
+- **Platform**: Android / minSdk 24    
+- **Architecture**: Fully client-side. No backend.  
+- **contract address**: 6Qz6EaxsD6LZewhM5NAw8ZkHTFcEju2XUAkbnpj9ZeAW  
 
 
 
