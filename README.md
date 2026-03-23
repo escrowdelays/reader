@@ -25,7 +25,7 @@ In Timer mode, you don't need to look for checkpoints — just select a book and
 - **contract address**: 6Qz6EaxsD6LZewhM5NAw8ZkHTFcEju2XUAkbnpj9ZeAW  
 
 
-
-- **download:** [https://apps.escrowdelays.com](https://apps.escrowdelays.com)
-- **Telegram:** [https://t.me/escrowdelays](https://t.me/escrowdelays)
+- **demo:** [youtube.com](https://www.youtube.com/shorts/8MtjB9LyLSA)  
+- **download:** [apps.escrowdelays.com](https://apps.escrowdelays.com)
+- **Telegram:** [@escrowdelays](https://t.me/escrowdelays)
 - **Email:** [stephenescrow@gmail.com](mailto:stephenescrow@gmail.com)
